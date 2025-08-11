@@ -214,6 +214,25 @@ class HadISDIndex(ArchiveIndex):
             )
 
         return paths
+    
+    # def filesystem(self, *args, date_range=("1970-01-01T00", "2023-12-31T23"), **kwargs) -> dict[str, Path]:
+    #     """
+    #     Map station IDs to the combined Zarr store path.
+    #     """
+    #     HADISD_HOME = self.ROOT_DIRECTORIES["hadisd"]
+    #     combined_store = Path(HADISD_HOME) / "combined_2stations.zarr"  # Update with your actual filename
+
+    #     station_ids = self.station
+    #     if isinstance(station_ids, str):
+    #         station_ids = [station_ids]
+    #     if "all" in station_ids:
+    #         # Optionally, you could list all available station IDs from the combined store
+    #         # For now, just keep "all"
+    #         pass
+
+    #     # Map all requested station IDs to the same combined store path
+    #     paths = {station_id: combined_store for station_id in station_ids}
+    #     return paths
 
     def load(
         self,
