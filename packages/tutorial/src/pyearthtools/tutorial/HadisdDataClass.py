@@ -150,7 +150,7 @@ class HadISDIndex(ArchiveIndex):
         """
         HADISD_HOME = self.ROOT_DIRECTORIES["hadisd"]
         if root_directory is None:
-            zarr_dir = Path(HADISD_HOME) / "zarr.zarr"
+            zarr_dir = Path(HADISD_HOME) / "zarr"
         else:
             zarr_dir = Path(root_directory)
 
@@ -164,76 +164,76 @@ class HadISDIndex(ArchiveIndex):
                 station_ids.append(station_id)
         return station_ids
 
-    # def filesystem(self, *args, date_range=("1970-01-01T00", "2023-12-31T23"), **kwargs) -> dict[str, Path]:
-    #     """
-    #     Map a station ID or list of station IDs to their corresponding file paths.
-
-    #     Args:
-    #         station_ids (str | list[str] | None): Station ID or list of station IDs. If None, use self.station.
-
-    #     Returns:
-    #         dict[str, Path]: A dictionary mapping station IDs to their corresponding file paths.
-
-    #     Raises:
-    #         DataNotFoundError: If a file is not found for any station ID.
-    #     """
-
-    #     HADISD_HOME = self.ROOT_DIRECTORIES["hadisd"]
-    #     station_ids = self.station
-
-    #     # Ensure station_ids is always a list
-    #     if isinstance(station_ids, str):
-    #         station_ids = [station_ids]
-
-    #     # Retrieve all station IDs from the dataset directory if "all" is present
-    #     if "all" in station_ids:
-    #         station_ids = self.get_all_station_ids(HADISD_HOME)
-
-    #     # Validate that station_ids is a list of strings
-    #     if not isinstance(station_ids, list) or not all(isinstance(sid, str) for sid in station_ids):
-    #         raise TypeError(f"Expected station_ids to be a str or list[str], but got: {type(station_ids)}")
-
-    #     # Map station IDs to their file paths
-    #     paths = {}
-    #     for station_id in station_ids:
-    #         date_range_str = "19310101-20240101"  # Hardcoded for now; adjust if dataset is updated
-    #         version = "hadisd.3.4.0.2023f"
-    #         filename_nc = f"{version}_{date_range_str}_{station_id}.nc"
-    #         filename_zarr = f"{version}_{date_range_str}_{station_id}.zarr"
-
-    #         # Construct the full path
-    #         file_path_nc = Path(HADISD_HOME) / "netcdf" / filename_nc
-    #         file_path_zarr = Path(HADISD_HOME) / "zarr" / filename_zarr
-
-    #         # Check if the file exists (comment out if testing with single netcdf)
-    #         if not file_path_zarr.exists():
-    #             raise DataNotFoundError(f"File not found for station: {station_id}, path: {file_path_zarr}")
-
-    #         # Add the file path to the dictionary
-    #         paths[station_id] = (
-    #             file_path_zarr  # Change to file_path_zarr to test with zarr files or remove "_zarr" to test with netcdf files
-    #         )
-
-    #     return paths
-    
     def filesystem(self, *args, date_range=("1970-01-01T00", "2023-12-31T23"), **kwargs) -> dict[str, Path]:
         """
-        Map station IDs to the combined Zarr store path.
-        """
-        HADISD_HOME = self.ROOT_DIRECTORIES["hadisd"]
-        combined_store = Path(HADISD_HOME) / "zarr.zarr"  # Update with your actual filename
+        Map a station ID or list of station IDs to their corresponding file paths.
 
+        Args:
+            station_ids (str | list[str] | None): Station ID or list of station IDs. If None, use self.station.
+
+        Returns:
+            dict[str, Path]: A dictionary mapping station IDs to their corresponding file paths.
+
+        Raises:
+            DataNotFoundError: If a file is not found for any station ID.
+        """
+
+        HADISD_HOME = self.ROOT_DIRECTORIES["hadisd"]
         station_ids = self.station
+
+        # Ensure station_ids is always a list
         if isinstance(station_ids, str):
             station_ids = [station_ids]
-        if "all" in station_ids:
-            # Optionally, you could list all available station IDs from the combined store
-            # For now, just keep "all"
-            pass
 
-        # Map all requested station IDs to the same combined store path
-        paths = {station_id: combined_store for station_id in station_ids}
+        # Retrieve all station IDs from the dataset directory if "all" is present
+        if "all" in station_ids:
+            station_ids = self.get_all_station_ids(HADISD_HOME)
+
+        # Validate that station_ids is a list of strings
+        if not isinstance(station_ids, list) or not all(isinstance(sid, str) for sid in station_ids):
+            raise TypeError(f"Expected station_ids to be a str or list[str], but got: {type(station_ids)}")
+
+        # Map station IDs to their file paths
+        paths = {}
+        for station_id in station_ids:
+            date_range_str = "19310101-20240101"  # Hardcoded for now; adjust if dataset is updated
+            version = "hadisd.3.4.0.2023f"
+            filename_nc = f"{version}_{date_range_str}_{station_id}.nc"
+            filename_zarr = f"{version}_{date_range_str}_{station_id}.zarr"
+
+            # Construct the full path
+            file_path_nc = Path(HADISD_HOME) / "netcdf" / filename_nc
+            file_path_zarr = Path(HADISD_HOME) / "zarr" / filename_zarr
+
+            # Check if the file exists (comment out if testing with single netcdf)
+            if not file_path_zarr.exists():
+                raise DataNotFoundError(f"File not found for station: {station_id}, path: {file_path_zarr}")
+
+            # Add the file path to the dictionary
+            paths[station_id] = (
+                file_path_zarr  # Change to file_path_zarr to test with zarr files or remove "_zarr" to test with netcdf files
+            )
+
         return paths
+    
+    # def filesystem(self, *args, date_range=("1970-01-01T00", "2023-12-31T23"), **kwargs) -> dict[str, Path]:
+    #     """
+    #     Map station IDs to the combined Zarr store path.
+    #     """
+    #     HADISD_HOME = self.ROOT_DIRECTORIES["hadisd"]
+    #     combined_store = Path(HADISD_HOME) / "zarr.zarr"  # Update with your actual filename
+
+    #     station_ids = self.station
+    #     if isinstance(station_ids, str):
+    #         station_ids = [station_ids]
+    #     if "all" in station_ids:
+    #         # Optionally, you could list all available station IDs from the combined store
+    #         # For now, just keep "all"
+    #         pass
+
+    #     # Map all requested station IDs to the same combined store path
+    #     paths = {station_id: combined_store for station_id in station_ids}
+    #     return paths
     
     def load(self, files, station_list=None, **kwargs):
         ds = xr.open_zarr(files)
