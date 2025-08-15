@@ -87,7 +87,10 @@ def preprocess_and_save(file_path, date_range, zarr_output_dir):  # TODO Needs t
 
 @register_archive("hadisd", sample_kwargs=dict(station="010010-99999"))
 class HadISDIndex(ArchiveIndex):
-    """HadISD Dataset Index"""
+    # def load(self, *args, **kwargs):
+    #     print("RUBBISH LOAD METHOD CALLED! If you see this, your override works.")
+    #     return None
+    # """HadISD Dataset Index"""
 
     @property
     def _desc_(self):
@@ -137,144 +140,76 @@ class HadISDIndex(ArchiveIndex):
 
         self.record_initialisation()
 
-    def get_all_station_ids(self, root_directory: Path | str = None) -> list[str]:
+    def get_all_station_ids(self, zarr_store: Path | str = None) -> list[str]:
         """
-        Retrieve all station IDs by scanning the Zarr directory.
+        Retrieve all station IDs from the Zarr store's 'station' dimension.
 
         Args:
-            root_directory (Path | str, optional): The directory containing Zarr files.
-                Defaults to HADISD_HOME/zarr.
+            zarr_store (Path | str, optional): Path to the Zarr store. Defaults to HADISD_HOME/zarr.zarr.
 
         Returns:
             list[str]: A list of all station IDs.
         """
         HADISD_HOME = self.ROOT_DIRECTORIES["hadisd"]
-        if root_directory is None:
-            zarr_dir = Path(HADISD_HOME) / "zarr"
+        if zarr_store is None:
+            zarr_store = Path(HADISD_HOME) / "zarr.zarr"
         else:
-            zarr_dir = Path(root_directory)
+            zarr_store = Path(zarr_store)
 
-        if not cached_exists(zarr_dir):
-            raise DataNotFoundError(f"Zarr directory does not exist: {zarr_dir}")
+        if not cached_exists(zarr_store):
+            raise DataNotFoundError(f"Zarr store does not exist: {zarr_store}")
 
-        station_ids = []
-        for file in cached_iterdir(zarr_dir):
-            if file.suffix == ".zarr":
-                station_id = file.stem.split("_")[-1]
-                station_ids.append(station_id)
-        return station_ids
+        # Open the Zarr store lazily and get the station dimension
+        ds = xr.open_zarr(zarr_store, chunks={}, consolidated=True)
+        return [str(s) for s in ds.station.values]
 
-    def filesystem(self, *args, date_range=("1970-01-01T00", "2023-12-31T23"), **kwargs) -> dict[str, Path]:
+    def filesystem(self, *args, **kwargs) -> dict[str, Path]:
         """
-        Map a station ID or list of station IDs to their corresponding file paths.
-
-        Args:
-            station_ids (str | list[str] | None): Station ID or list of station IDs. If None, use self.station.
+        Return the path to the single Zarr store for all stations.
 
         Returns:
-            dict[str, Path]: A dictionary mapping station IDs to their corresponding file paths.
-
-        Raises:
-            DataNotFoundError: If a file is not found for any station ID.
+            dict[str, Path]: Dictionary mapping 'all' to the Zarr store path.
         """
-
         HADISD_HOME = self.ROOT_DIRECTORIES["hadisd"]
-        station_ids = self.station
-
-        # Ensure station_ids is always a list
-        if isinstance(station_ids, str):
-            station_ids = [station_ids]
-
-        # Retrieve all station IDs from the dataset directory if "all" is present
-        if "all" in station_ids:
-            station_ids = self.get_all_station_ids(HADISD_HOME)
-
-        # Validate that station_ids is a list of strings
-        if not isinstance(station_ids, list) or not all(isinstance(sid, str) for sid in station_ids):
-            raise TypeError(f"Expected station_ids to be a str or list[str], but got: {type(station_ids)}")
-
-        # Map station IDs to their file paths
-        paths = {}
-        for station_id in station_ids:
-            date_range_str = "19310101-20240101"  # Hardcoded for now; adjust if dataset is updated
-            version = "hadisd.3.4.0.2023f"
-            filename_nc = f"{version}_{date_range_str}_{station_id}.nc"
-            filename_zarr = f"{version}_{date_range_str}_{station_id}.zarr"
-
-            # Construct the full path
-            file_path_nc = Path(HADISD_HOME) / "netcdf" / filename_nc
-            file_path_zarr = Path(HADISD_HOME) / "zarr" / filename_zarr
-
-            # Check if the file exists (comment out if testing with single netcdf)
-            if not file_path_zarr.exists():
-                raise DataNotFoundError(f"File not found for station: {station_id}, path: {file_path_zarr}")
-
-            # Add the file path to the dictionary
-            paths[station_id] = (
-                file_path_zarr  # Change to file_path_zarr to test with zarr files or remove "_zarr" to test with netcdf files
-            )
-
-        return paths
+        zarr_store = Path(HADISD_HOME) / "zarr.zarr"  # Update with your actual filename if needed
+        if not cached_exists(zarr_store):
+            raise DataNotFoundError(f"Zarr store does not exist: {zarr_store}")
+        return zarr_store
     
-    # def filesystem(self, *args, date_range=("1970-01-01T00", "2023-12-31T23"), **kwargs) -> dict[str, Path]:
-    #     """
-    #     Map station IDs to the combined Zarr store path.
-    #     """
-    #     HADISD_HOME = self.ROOT_DIRECTORIES["hadisd"]
-    #     combined_store = Path(HADISD_HOME) / "zarr.zarr"  # Update with your actual filename
-
-    #     station_ids = self.station
-    #     if isinstance(station_ids, str):
-    #         station_ids = [station_ids]
-    #     if "all" in station_ids:
-    #         # Optionally, you could list all available station IDs from the combined store
-    #         # For now, just keep "all"
-    #         pass
-
-    #     # Map all requested station IDs to the same combined store path
-    #     paths = {station_id: combined_store for station_id in station_ids}
-    #     return paths
-    
-    # def load(self, files, station_list=None, **kwargs):
-    #     ds = xr.open_zarr(files)
-    #     if station_list is not None:
-    #         ds = ds.sel(station=station_list)
-    #     return ds
+    # TODO: Station selection should be handled as a transform, similar to variable selection.
+    # This will allow for flexible, pipeline-based selection and lazy loading.
 
     def load(
         self,
-        files: dict[str, Path] | Path | list[str | Path] | tuple[str | Path],
-        combine: str = "nested",
-        concat_dim: str = "station",
-        parallel: bool = True,
-        # engine: Literal["netcdf4", "zarr"] = "zarr",  # Default engine for loading
+        zarr_store: Path | str = None,
+        station: str | list[str] | None = None,
         **kwargs,
-    ) -> Any:
+    ) -> xr.Dataset:
         """
-        Custom load method for HadISDIndex.
+        Load data from the single Zarr store, supporting 'all' as a station argument.
 
         Args:
-            files (dict[str, Path] | Path | list[str | Path] | tuple[str | Path]):
-                Files to load.
-            combine (str, optional):
-                Combine method for NetCDF files. Defaults to "by_coords".
-                Options:
-                    - "by_coords": Combine datasets by aligning coordinates.
-                    - "nested": Combine datasets by concatenating along a new dimension.
-            **kwargs:
-                Additional arguments passed to the parent class's load method.
+            zarr_store (Path | str, optional): Path to the Zarr store. Defaults to HADISD_HOME/zarr.zarr.
+            station (str | list[str] | None, optional): Station(s) to select. If 'all', loads all stations.
+            **kwargs: Additional arguments passed to xarray.open_zarr.
 
         Returns:
-            Any:
-                Loaded data.
+            xr.Dataset: The loaded dataset (lazily loaded, dask-backed).
         """
-        # Pass the combine argument as part of **kwargs
-        kwargs["combine"] = combine
-        kwargs["concat_dim"] = concat_dim
-        kwargs["parallel"] = parallel
-
-        # Call the parent class's load method
-        return super().load(files, **kwargs)
+        HADISD_HOME = self.ROOT_DIRECTORIES["hadisd"]
+        if zarr_store is None:
+            zarr_store = Path(HADISD_HOME) / "zarr.zarr"
+        else:
+            zarr_store = Path(zarr_store)
+        if not cached_exists(zarr_store):
+            raise DataNotFoundError(f"Zarr store does not exist: {zarr_store}")
+        # Handle 'all' station selection
+        if station == "all" or (isinstance(station, list) and "all" in station):
+            station = self.get_all_station_ids(zarr_store)
+        ds = xr.open_zarr(zarr_store, consolidated=True, **kwargs)
+        if station is not None:
+            ds = ds.sel(station=station)
+        return ds
 
     @property
     def _import(self):
