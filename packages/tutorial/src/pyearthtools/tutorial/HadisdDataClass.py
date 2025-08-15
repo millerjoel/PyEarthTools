@@ -235,11 +235,11 @@ class HadISDIndex(ArchiveIndex):
     #     paths = {station_id: combined_store for station_id in station_ids}
     #     return paths
     
-    def load(self, files, station_list=None, **kwargs):
-        ds = xr.open_zarr(files)
-        if station_list is not None:
-            ds = ds.sel(station=station_list)
-        return ds
+    # def load(self, files, station_list=None, **kwargs):
+    #     ds = xr.open_zarr(files)
+    #     if station_list is not None:
+    #         ds = ds.sel(station=station_list)
+    #     return ds
 
     def load(
         self,
